@@ -37,6 +37,57 @@
   var sb = null;
   var snapshot = { users: {}, visits: [], plans: {}, assign: {}, resets: [] };
 
+  /* ---------------------------------------------------------------
+     Pantalla de carga
+
+     El portal no se dibuja hasta que llegan los datos. Sin esto, el
+     usuario ve unos instantes la plantilla en crudo (con las llaves
+     {{ }} a la vista) y parece que algo se rompió.
+     --------------------------------------------------------------- */
+  (function pantallaDeCarga() {
+    // Se inyecta ya, antes de que el navegador dibuje el <body>: si no,
+    // se alcanza a ver la plantilla en crudo con las llaves {{ }} y
+    // parece que la página falló. El runtime reemplaza <x-dc> al montar,
+    // así que ocultarlo no afecta al portal.
+    var st = document.createElement("style");
+    st.textContent = "x-dc{display:none!important}";
+    (document.head || document.documentElement).appendChild(st);
+
+    function pintar() {
+      if (!document.body || document.getElementById("gu-cargando")) return;
+      var d = document.createElement("div");
+      d.id = "gu-cargando";
+      d.style.cssText =
+        "position:fixed;inset:0;z-index:99998;display:flex;align-items:center;" +
+        "justify-content:center;background:#F4F6FA;color:#5A6B7C;" +
+        "font:600 15px system-ui,-apple-system,Segoe UI,sans-serif";
+      d.textContent = "Cargando el portal…";
+      document.body.appendChild(d);
+    }
+    if (document.body) pintar();
+    else document.addEventListener("DOMContentLoaded", pintar);
+  })();
+
+  function quitarCarga() {
+    var d = document.getElementById("gu-cargando");
+    if (d) d.remove();
+  }
+
+  // El portal se dibuja unos instantes después de que carga el runtime.
+  // Sin esta espera se ve un parpadeo en blanco entre una cosa y la otra
+  // (el que aparecía justo después de iniciar sesión).
+  function esperarRender() {
+    var t0 = Date.now();
+    var iv = setInterval(function () {
+      var r = document.getElementById("dc-root");
+      if ((r && r.firstChild) || Date.now() - t0 > 8000) {
+        clearInterval(iv);
+        quitarCarga();
+        botonCambioPwd();
+      }
+    }, 60);
+  }
+
   var GU = {
     cache: { session: null, users: {}, visits: [], plans: {}, assign: {}, resets: [] },
     ready: false
@@ -46,27 +97,72 @@
   /* ---------------------------------------------------------------
      Avisos en pantalla
      --------------------------------------------------------------- */
-  function banner(msg, kind) {
-    var id = "gu-banner";
-    var el = document.getElementById(id);
-    if (!el) {
-      el = document.createElement("div");
-      el.id = id;
-      el.style.cssText =
-        "position:fixed;z-index:99999;left:50%;transform:translateX(-50%);top:14px;" +
-        "max-width:min(680px,92vw);padding:12px 18px;border-radius:12px;" +
-        "font:600 14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;" +
-        "box-shadow:0 8px 28px rgba(0,0,0,.18);cursor:pointer";
-      el.addEventListener("click", function () { el.remove(); });
-      document.body.appendChild(el);
+  // kind: "ok" | "info" | "error" | "hold"
+  //   "hold" = mensaje importante: verde, no se cierra solo ni por clic
+  //            accidental, y si trae copyText muestra un botón de copiar.
+  function banner(msg, kind, copyText) {
+    var prev = document.getElementById("gu-banner");
+    if (prev) prev.remove();
+
+    var el = document.createElement("div");
+    el.id = "gu-banner";
+    var esError = kind === "error";
+    var esInfo  = kind === "info";
+    var fondo   = esError ? "#FEF3F2" : esInfo ? "#EFF4FF" : "#ECFDF3";
+    var texto   = esError ? "#912018" : esInfo ? "#0A2296" : "#05603A";
+    var borde   = esError ? "#FECDC9" : esInfo ? "#B2C5FF" : "#ABEFC6";
+    el.style.cssText =
+      "position:fixed;z-index:99999;left:50%;transform:translateX(-50%);top:14px;" +
+      "max-width:min(720px,94vw);padding:12px 14px 12px 18px;border-radius:12px;" +
+      "font:600 14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;" +
+      "box-shadow:0 8px 28px rgba(0,0,0,.18);display:flex;align-items:center;gap:12px;" +
+      "background:" + fondo + ";color:" + texto + ";border:1px solid " + borde;
+
+    var txt = document.createElement("span");
+    txt.textContent = msg;
+    txt.style.cssText = "flex:1;user-select:text";   // se puede seleccionar a mano
+    el.appendChild(txt);
+
+    if (copyText) {
+      var btn = document.createElement("button");
+      btn.textContent = "Copiar";
+      btn.style.cssText =
+        "flex:none;padding:6px 14px;border-radius:999px;border:1px solid " + texto +
+        ";background:transparent;color:" + texto +
+        ";font:700 12px system-ui,sans-serif;cursor:pointer";
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var listo = function () { btn.textContent = "¡Copiada!"; };
+        try {
+          navigator.clipboard.writeText(copyText).then(listo, manual);
+        } catch (err) { manual(); }
+        function manual() {
+          // Respaldo para navegadores que no dan acceso al portapapeles.
+          var ta = document.createElement("textarea");
+          ta.value = copyText;
+          document.body.appendChild(ta); ta.select();
+          try { document.execCommand("copy"); listo(); } catch (e2) {}
+          ta.remove();
+        }
+      };
+      el.appendChild(btn);
     }
-    var ok    = kind === "ok";
-    var info  = kind === "info";
-    el.style.background = ok ? "#ECFDF3" : info ? "#EFF4FF" : "#FEF3F2";
-    el.style.color      = ok ? "#05603A" : info ? "#0A2296" : "#912018";
-    el.style.border     = "1px solid " + (ok ? "#ABEFC6" : info ? "#B2C5FF" : "#FECDC9");
-    el.textContent = msg;
-    if (kind !== "hold") setTimeout(function () { if (el) el.remove(); }, kind === "ok" ? 4500 : 9000);
+
+    var cerrar = document.createElement("button");
+    cerrar.textContent = "✕";
+    cerrar.setAttribute("aria-label", "Cerrar aviso");
+    cerrar.style.cssText =
+      "flex:none;border:none;background:transparent;color:" + texto +
+      ";font-size:16px;line-height:1;cursor:pointer;padding:4px 6px";
+    cerrar.onclick = function () { el.remove(); };
+    el.appendChild(cerrar);
+
+    document.body.appendChild(el);
+
+    // Los avisos corrientes se van solos; los "hold" esperan a que los cierres.
+    if (kind !== "hold") {
+      setTimeout(function () { if (el) el.remove(); }, esError ? 9000 : 4500);
+    }
   }
   GU.banner = banner;
 
@@ -156,7 +252,12 @@
     });
 
     var resets = r[4].data.map(function (x) {
-      return { id: x.id, email: x.email, name: x.name, date: x.requested_on, status: x.status };
+      return {
+        id: x.id, email: x.email, name: x.name,
+        date: x.requested_on, status: x.status,
+        tempPwd: x.temp_password || "—",    // se muestra en la columna de la tabla
+        resolvedAt: x.resolved_at || null   // desde acá se cuentan los 2 días
+      };
     });
 
     GU.cache = {
@@ -235,10 +336,13 @@
      La app sigue llamando save(clave, coleccionCompleta); aquí se
      calcula qué cambió y se escribe solo eso.
      --------------------------------------------------------------- */
+  // Devuelve una promesa con {ok:true} o {ok:false,error}. La app la usa
+  // para no cantar "guardado" antes de que el servidor conteste.
   GU.save = function (key, val) {
-    sync(key, val).catch(function (e) {
+    return sync(key, val).then(function () { return { ok: true }; }, function (e) {
       console.error("[GU]", key, e);
       banner("No se pudo guardar: " + (e.message || e), "error");
+      return { ok: false, error: e.message || String(e) };
     });
   };
 
@@ -298,6 +402,11 @@
     if (key === KEY.USERS) {
       var prev = snapshot.users, next = val || {};
       var errores = [];
+      // El snapshot solo avanza con lo que REALMENTE se guardó. Si algo falla,
+      // queda pendiente y se reintenta en el próximo cambio. (Antes se marcaba
+      // todo como sincronizado aunque hubiera fallado, y el reintento nunca
+      // volvía a ocurrir.)
+      var hecho = JSON.parse(JSON.stringify(prev));
 
       // altas
       for (var em in next) {
@@ -309,8 +418,9 @@
         });
         if (r1.error) errores.push(em + ": " + r1.error);
         else {
-          banner("Cuenta creada para " + em + ". Contraseña temporal: " + r1.password, "hold");
+          banner("Cuenta creada para " + em + " · Contraseña temporal: " + r1.password, "hold", r1.password);
           delete next[em].pwd;
+          hecho[em] = { name: u.name, role: u.role, country: u.country };
         }
       }
       // bajas
@@ -318,6 +428,7 @@
         if (next[em2]) continue;
         var r2 = await fn("delete_user", { email: em2 });
         if (r2.error) errores.push(em2 + ": " + r2.error);
+        else delete hecho[em2];
       }
       // cambios de rol
       for (var em3 in next) {
@@ -325,9 +436,10 @@
         if (prev[em3].role !== next[em3].role) {
           var r3 = await fn("set_role", { email: em3, role: next[em3].role });
           if (r3.error) errores.push(em3 + ": " + r3.error);
+          else if (hecho[em3]) hecho[em3].role = next[em3].role;
         }
       }
-      snapshot.users = JSON.parse(JSON.stringify(next));
+      snapshot.users = hecho;
       if (errores.length) throw new Error(errores.join(" · "));
       return;
     }
@@ -342,8 +454,10 @@
         if (rq.status === "Aprobada") {
           var ra2 = await fn("approve_reset", { id: rq.id });
           if (ra2.error) throw new Error(ra2.error);
-          banner("Contraseña nueva de " + ra2.email + ": " + ra2.password +
-                 "  (se muestra una sola vez — compartila y cerrá este aviso)", "hold");
+          // Además del aviso, queda en la columna "Contraseña temporal"
+          // de la tabla, así que no se pierde si no alcanzás a copiarla.
+          banner("Contraseña nueva de " + ra2.email + " · " + ra2.password,
+                 "hold", ra2.password);
         } else if (rq.status === "Rechazada") {
           var rr = await fn("reject_reset", { id: rq.id });
           if (rr.error) throw new Error(rr.error);
@@ -355,10 +469,172 @@
   }
 
   /* ---------------------------------------------------------------
+     Cambiar mi propia contraseña
+
+     Va acá y no en la plantilla a propósito: la plantilla la genera
+     Claude Design y se regenera; esto es una capa aparte que sobrevive.
+     El botón queda flotando abajo a la derecha porque el encabezado lo
+     dibuja React y cualquier cosa que le inyecte se borra al redibujar.
+     --------------------------------------------------------------- */
+  var MIN_PWD = 6;
+
+  function campo(label, tipo) {
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;flex-direction:column;gap:6px";
+    var l = document.createElement("label");
+    l.textContent = label;
+    l.style.cssText =
+      "font:600 11px system-ui,sans-serif;letter-spacing:.12em;" +
+      "text-transform:uppercase;color:#5D6D7E";
+    var i = document.createElement("input");
+    i.type = tipo;
+    i.style.cssText =
+      "padding:11px 14px;border:1px solid #D8DEE6;border-radius:12px;" +
+      "font:400 15px system-ui,sans-serif;color:#1B2733;box-sizing:border-box;width:100%";
+    wrap.appendChild(l); wrap.appendChild(i);
+    return { wrap: wrap, input: i };
+  }
+
+  function abrirCambioPwd() {
+    if (document.getElementById("gu-pwd-modal")) return;
+    var ses = GU.cache.session;
+    if (!ses) return;
+
+    var fondo = document.createElement("div");
+    fondo.id = "gu-pwd-modal";
+    fondo.style.cssText =
+      "position:fixed;inset:0;z-index:99997;background:rgba(15,42,74,.55);" +
+      "display:flex;align-items:center;justify-content:center;padding:20px";
+
+    var caja = document.createElement("div");
+    caja.style.cssText =
+      "background:#fff;border-radius:22px;padding:28px;width:min(430px,100%);" +
+      "box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:system-ui,-apple-system,sans-serif";
+
+    var t = document.createElement("div");
+    t.textContent = "Cambiar mi contraseña";
+    t.style.cssText = "font:800 21px system-ui,sans-serif;color:#0F2A4A;margin-bottom:6px";
+    var sub = document.createElement("div");
+    sub.textContent = ses.email;
+    sub.style.cssText = "font:400 13px system-ui,sans-serif;color:#5D6D7E;margin-bottom:20px";
+
+    var actual = campo("Contraseña actual", "password");
+    var nueva  = campo("Contraseña nueva (mín. " + MIN_PWD + " caracteres)", "password");
+    var rep    = campo("Repetí la nueva", "password");
+    [actual.wrap, nueva.wrap, rep.wrap].forEach(function (w) { w.style.marginBottom = "14px"; });
+
+    var msg = document.createElement("div");
+    msg.style.cssText = "font:600 13px system-ui,sans-serif;min-height:18px;margin-bottom:14px";
+
+    var fila = document.createElement("div");
+    fila.style.cssText = "display:flex;gap:10px;justify-content:flex-end";
+    var cancelar = document.createElement("button");
+    cancelar.textContent = "Cancelar";
+    cancelar.style.cssText =
+      "padding:11px 20px;border-radius:999px;border:1.5px solid #D8DEE6;background:#fff;" +
+      "color:#5D6D7E;font:700 14px system-ui,sans-serif;cursor:pointer";
+    var guardar = document.createElement("button");
+    guardar.textContent = "Cambiar";
+    guardar.style.cssText =
+      "padding:11px 24px;border-radius:999px;border:none;background:#0A2296;color:#fff;" +
+      "font:700 14px system-ui,sans-serif;cursor:pointer";
+
+    function cerrar() { fondo.remove(); }
+    cancelar.onclick = cerrar;
+    fondo.onclick = function (e) { if (e.target === fondo) cerrar(); };
+
+    guardar.onclick = async function () {
+      msg.style.color = "#912018";
+      if (!actual.input.value) { msg.textContent = "Escribí tu contraseña actual."; return; }
+      if (nueva.input.value.length < MIN_PWD) {
+        msg.textContent = "La nueva debe tener al menos " + MIN_PWD + " caracteres."; return;
+      }
+      if (nueva.input.value !== rep.input.value) {
+        msg.textContent = "Las dos contraseñas nuevas no coinciden."; return;
+      }
+      if (nueva.input.value === actual.input.value) {
+        msg.textContent = "La nueva tiene que ser distinta de la actual."; return;
+      }
+      guardar.disabled = true;
+      guardar.textContent = "Cambiando…";
+      msg.style.color = "#5D6D7E";
+      msg.textContent = "";
+
+      // Se verifica la contraseña actual antes de cambiarla: si alguien deja
+      // la sesión abierta, no basta con estar sentado frente a la pantalla.
+      var v = await sb.auth.signInWithPassword({
+        email: ses.email, password: actual.input.value
+      });
+      if (v.error) {
+        guardar.disabled = false; guardar.textContent = "Cambiar";
+        msg.style.color = "#912018";
+        msg.textContent = "La contraseña actual no es correcta.";
+        return;
+      }
+      var u = await sb.auth.updateUser({ password: nueva.input.value });
+      if (u.error) {
+        guardar.disabled = false; guardar.textContent = "Cambiar";
+        msg.style.color = "#912018";
+        msg.textContent = u.error.message;
+        return;
+      }
+      cerrar();
+      banner("Listo, tu contraseña quedó cambiada.", "ok");
+    };
+
+    fila.appendChild(cancelar); fila.appendChild(guardar);
+    caja.appendChild(t); caja.appendChild(sub);
+    caja.appendChild(actual.wrap); caja.appendChild(nueva.wrap); caja.appendChild(rep.wrap);
+    caja.appendChild(msg); caja.appendChild(fila);
+    fondo.appendChild(caja);
+    document.body.appendChild(fondo);
+    actual.input.focus();
+  }
+  GU.abrirCambioPwd = abrirCambioPwd;
+
+  function botonCambioPwd() {
+    if (!GU.cache.session || document.getElementById("gu-pwd-btn")) return;
+    var b = document.createElement("button");
+    b.id = "gu-pwd-btn";
+    b.textContent = "Cambiar mi contraseña";
+    b.style.cssText =
+      "position:fixed;right:18px;bottom:18px;z-index:99996;padding:10px 18px;" +
+      "border-radius:999px;border:1.5px solid #0F2A4A;background:#fff;color:#0F2A4A;" +
+      "font:700 13px system-ui,-apple-system,sans-serif;cursor:pointer;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,.14)";
+    b.onclick = abrirCambioPwd;
+    document.body.appendChild(b);
+  }
+
+  /* ---------------------------------------------------------------
+     Borrado de contraseñas temporales vencidas
+
+     Se ejecuta cuando entra una administradora corporativa. No hace
+     falta una tarea programada: el portal limpia lo vencido al abrirse,
+     y de todos modos nunca muestra una contraseña de más de 2 días.
+
+     OJO: esto borra el REGISTRO, no la contraseña de la cuenta. La
+     persona sigue entrando con ella hasta que pida un cambio.
+     --------------------------------------------------------------- */
+  var DIAS_VIGENCIA = 2;
+
+  async function limpiarVencidas(profile) {
+    if (profile.role !== "Administrador corporativo") return;
+    var corte = new Date(Date.now() - DIAS_VIGENCIA * 86400000).toISOString();
+    try {
+      await sb.from("password_resets")
+        .update({ temp_password: null })
+        .not("temp_password", "is", null)
+        .lt("resolved_at", corte);
+    } catch (e) { console.warn("[GU] limpieza:", e); }
+  }
+
+  /* ---------------------------------------------------------------
      Arranque
      --------------------------------------------------------------- */
   function bootApp() {
     GU.ready = true;
+    esperarRender();
     RUNTIME_SCRIPTS.forEach(function (src) {
       var s = document.createElement("script");
       s.src = src;
@@ -395,6 +671,7 @@
     }
 
     try {
+      await limpiarVencidas(p.data);
       await loadAll(p.data);
     } catch (e) {
       console.error(e);
