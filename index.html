@@ -1972,6 +1972,7 @@ strong, b { font-weight: var(--fw-bold); }
       <sc-if value="{{ step0 }}" hint-placeholder-val="{{ false }}">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
           <div><div style="font:600 11px var(--font-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Tienda visitada</div>
+            <input name="storeQ" value="{{ storeQ }}" sc-camel-on-change="{{ onStoreQ }}" placeholder="Buscá la tienda por nombre o ciudad…" style="width:100%;padding:10px 12px;margin-bottom:8px;border:1px solid var(--border-subtle);border-radius:12px;font-size:14px;color:var(--text-strong);box-sizing:border-box">
             <sc-raw-select name="store" value="{{ d.store }}" sc-camel-on-change="{{ onDraft }}" style="width:100%;padding:10px 12px;border:1px solid var(--border-subtle);border-radius:12px;font-size:14px;background:#fff;color:var(--text-strong);box-sizing:border-box">
               <option value="">— Selecciona —</option>
               <sc-for list="{{ myStores }}" as="st" hint-placeholder-count="4"><option value="{{ st }}">{{ st }}</option></sc-for>
@@ -2202,15 +2203,21 @@ strong, b { font-weight: var(--fw-bold); }
       <div style="margin-bottom:14px;background:#EAF6EF;border:1px solid var(--gu-green);border-radius:12px;padding:12px 16px;font:600 14px var(--font-body);color:#2C6E48">✓ Visita registrada correctamente. Ya alimenta los reportes diario, semanal y mensual.</div>
     </sc-if>
     <div style="background:#fff;border:1px solid var(--border-subtle);border-radius:22px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:110px 1fr 1fr 90px 90px 90px;gap:10px;padding:12px 20px;background:var(--gu-navy-648);font:700 11px var(--font-ui);letter-spacing:.1em;text-transform:uppercase;color:#fff">
-        <div>Fecha</div><div>Tienda</div><div>Especialista</div><div>Vendedores</div><div>Agenda</div><div>Cierre</div>
+      <div style="display:grid;grid-template-columns:100px 1fr 1fr 80px 80px 80px 150px;gap:10px;padding:12px 20px;background:var(--gu-navy-648);font:700 11px var(--font-ui);letter-spacing:.1em;text-transform:uppercase;color:#fff">
+        <div>Fecha</div><div>Tienda</div><div>Especialista</div><div>Vendedores</div><div>Agenda</div><div>Cierre</div><div>Acción</div>
       </div>
       <sc-for list="{{ visitRowsList }}" as="r" hint-placeholder-count="6">
-        <div style="display:grid;grid-template-columns:110px 1fr 1fr 90px 90px 90px;gap:10px;padding:12px 20px;border-top:1px solid var(--border-subtle);font:400 13px var(--font-body);color:var(--text-body);align-items:center">
+        <div style="display:grid;grid-template-columns:100px 1fr 1fr 80px 80px 80px 150px;gap:10px;padding:12px 20px;border-top:1px solid var(--border-subtle);font:400 13px var(--font-body);color:var(--text-body);align-items:center">
           <div style="font-weight:600;color:var(--text-strong)">{{ r.fecha }}</div><div>{{ r.tienda }}</div><div>{{ r.espec }}</div>
           <div style="text-align:center">{{ r.nVend }}</div>
           <div style="font:700 11px var(--font-ui);color:{{ r.agendaColor }}">{{ r.agenda }}</div>
           <div style="font:700 11px var(--font-ui);color:{{ r.cierreColor }}">{{ r.cierre }}</div>
+          <div style="display:flex;gap:6px">
+            <sc-if value="{{ r.puedeEditar }}" hint-placeholder-val="{{ true }}">
+              <button data-id="{{ r.id }}" sc-camel-on-click="{{ editVisit }}" style="padding:6px 12px;border:1.5px solid var(--gu-blue-286);border-radius:999px;background:#fff;color:var(--gu-blue-286);font:700 11px var(--font-display);cursor:pointer">Corregir</button>
+              <button data-id="{{ r.id }}" sc-camel-on-click="{{ delVisit }}" style="padding:6px 12px;border:1.5px solid var(--status-danger);border-radius:999px;background:#fff;color:var(--status-danger);font:700 11px var(--font-display);cursor:pointer">Eliminar</button>
+            </sc-if>
+          </div>
         </div>
       </sc-for>
       <sc-if value="{{ noVisits }}" hint-placeholder-val="{{ false }}">
@@ -2583,7 +2590,7 @@ class Component extends DCLogic {
       authMode:'login', pwd2:'', authMsg:'',
       loginEmail:'', loginPwd:'', loginRole:'Especialista', loginCountry:'El Salvador', loginError:'',
       tab: session && /^Administrador/.test(session.role) ? 'reportes' : 'nueva',
-      step:0, draft:this.initDraft(), submitMsg:'', savedBanner:false,
+      step:0, draft:this.initDraft(), submitMsg:'', savedBanner:false, storeQ:'', editId:null,
       newEmail:'', newRole:'Especialista', newCountry:'El Salvador', newPwd:'', teamMsg:'', teamMsgOk:false,
       nuEmail:'', nuName:'', nuRole:'Especialista', nuCountry:'El Salvador', nuPwd:'', nuMsg:'', nuOk:false,
       repTab:'semanal', countryFilter:'Todos los países',
@@ -2747,11 +2754,27 @@ class Component extends DCLogic {
       }),
       noResets:S.resets.length===0,
       showPwdInfo:(e)=>{ if(window.GU&&window.GU.banner) window.GU.banner(e.currentTarget.dataset.msg,'info'); },
+      editVisit:(e)=>{
+        const id=e.currentTarget.dataset.id;
+        const v=S.myVisits.find(x=>x.id===id);
+        if(!v){ if(window.GU&&window.GU.banner) window.GU.banner('No se encontró esa visita.','error'); return; }
+        set({draft:{...this.initDraft(), ...(v.full||{})}, editId:id, step:0, tab:'nueva', submitMsg:'Estás corrigiendo una visita ya registrada. Al enviarla se reemplaza la anterior.', savedBanner:false});
+      },
+      delVisit:(e)=>{
+        const id=e.currentTarget.dataset.id;
+        const v=S.myVisits.find(x=>x.id===id);
+        if(!v) return;
+        if(!confirm('¿Eliminar la visita de '+v.store+' del '+v.date+'? No se puede deshacer.')) return;
+        const mv=S.myVisits.filter(x=>x.id!==id);
+        this.save('gu_fac_visits_v1',mv).then(r=>{ if(r&&r.ok) set({myVisits:mv}); });
+      },
       approveReset:(e)=>{ const id=e.currentTarget.dataset.id; const nr=S.resets.map(r=>r.id===id?{...r,status:'Aprobada'}:r); const rq=S.resets.find(r=>r.id===id);
         const nu={...S.users}; if(rq&&nu[rq.email]) nu[rq.email]={...nu[rq.email],pwd:rq.newPwd};
         this.save('gu_fac_resets_v1',nr); this.save('gu_fac_users_v1',nu); set({resets:nr,users:nu}); },
       rejectReset:(e)=>{ const id=e.currentTarget.dataset.id; const nr=S.resets.map(r=>r.id===id?{...r,status:'Rechazada'}:r); this.save('gu_fac_resets_v1',nr); set({resets:nr}); },
-      myStores:(S.assign[ses.email]&&S.assign[ses.email].stores&&S.assign[ses.email].stores.length? S.assign[ses.email].stores : (this.storeMap[(S.assign[ses.email]&&S.assign[ses.email].country)||ses.country]||[])),
+      myStores:((S.assign[ses.email]&&S.assign[ses.email].stores&&S.assign[ses.email].stores.length? S.assign[ses.email].stores : (this.storeMap[(S.assign[ses.email]&&S.assign[ses.email].country)||ses.country]||[])).filter(st=>!S.storeQ||st.toLowerCase().includes(S.storeQ.toLowerCase()))),
+      storeQ:S.storeQ,
+      onStoreQ:(e)=>set({storeQ:e.target.value}),
       hasAssign:!!(S.assign[ses.email]&&S.assign[ses.email].stores&&S.assign[ses.email].stores.length),
       noAssign:!(S.assign[ses.email]&&S.assign[ses.email].stores&&S.assign[ses.email].stores.length),
       catalogNote:'Catálogo completo de '+ses.country+' ('+((this.storeMap[ses.country]||[]).length)+' tiendas). El administrador aún no te asigna tiendas propias.'
@@ -2887,17 +2910,17 @@ class Component extends DCLogic {
       checkRows:this.CHECKS.map((c,i)=>({label:c, on:d.checks[i], expect:i===7?'Sí o N/A':'Sí', bg:d.checks[i]?'#EAF6EF':'#fff', bd:d.checks[i]?'var(--gu-green)':'var(--border-subtle)'})),
       submitVisit:()=>{
         if(!d.checks.every(Boolean)){ set({submitMsg:'No envíes el reporte con pendientes: marca cada verificación (vuelve a la sección si alguna es No).'}); return; }
-        const visit={ id:'u'+Date.now(), userId:ses.email, espec:ses.name, country:ses.country,
+        const visit={ id:S.editId||('u'+Date.now()), userId:ses.email, espec:ses.name, country:ses.country,
           store:d.store, date:this.fmt(new Date()), horaLlegada:d.horaLlegada||'—', horaSalida:d.horaSalida||'—',
           agendaAprobada:d.agendaAprobada, cierreHecho:d.cierreHecho, acuerdoCumplido:null, escala:d.escala,
           brechaVisita:d.brechaVisita, vozCats:d.vozEntradas.map(c=>c.categoria),
           vendedores:d.vendedores.filter(v=>v.nombre||v.palabras||v.atenciones).map(v=>({...v})),
           full:d };
-        const mv=S.myVisits.concat([visit]);
+        const mv=S.editId ? S.myVisits.map(x=>x.id===S.editId?visit:x) : S.myVisits.concat([visit]);
         set({submitMsg:'Guardando la visita…'});
         this.save('gu_fac_visits_v1',mv).then(r=>{
           if(!r||!r.ok){ set({submitMsg:'No se pudo guardar la visita. Revisá el aviso de arriba y volvé a intentar — no cierres esta pantalla, el reporte sigue acá.'}); return; }
-          set({myVisits:mv, draft:this.initDraft(), step:0, tab:'visitas', savedBanner:true, submitMsg:''});
+          set({myVisits:mv, draft:this.initDraft(), editId:null, step:0, tab:'visitas', savedBanner:true, submitMsg:''});
         });
       }
     });
@@ -2908,7 +2931,7 @@ class Component extends DCLogic {
     Object.assign(vals,{
       visitasTitle:isAdmin?'Visitas recientes (todas)':'Mis visitas',
       savedBanner:S.savedBanner, noVisits:mine.length===0,
-      visitRowsList:mine.map(v=>({fecha:v.date, tienda:v.store, espec:v.espec, nVend:(v.vendedores||[]).length,
+      visitRowsList:mine.map(v=>({id:v.id, puedeEditar:(isAdmin||v.userId===ses.email), fecha:v.date, tienda:v.store, espec:v.espec, nVend:(v.vendedores||[]).length,
         agenda:v.agendaAprobada, agendaColor:yn(v.agendaAprobada).color, cierre:v.cierreHecho, cierreColor:yn(v.cierreHecho).color}))
     });
     // ----- plan -----
