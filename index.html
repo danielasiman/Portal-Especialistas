@@ -1958,6 +1958,12 @@ strong, b { font-weight: var(--fw-bold); }
       <h1 style="margin:0;font:800 26px var(--font-display);color:var(--text-strong)">Registro de visita a tienda</h1>
     </div>
     <div style="font:400 14px/1.6 var(--font-body);color:var(--text-muted);margin:0 0 20px 20px">Llena esta guía <b>al salir de la tienda</b>. No antes. No al día siguiente. La memoria pierde precisión en horas.</div>
+    <sc-if value="{{ editando }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;background:#FFFBEF;border:1.5px dashed var(--gu-amber);border-radius:14px;padding:14px 18px">
+        <div style="flex:1;min-width:240px;font:600 13px/1.5 var(--font-body);color:var(--text-strong)">Estás corrigiendo una visita ya registrada. Al enviarla se reemplaza la anterior; si salís sin enviar, queda como estaba.</div>
+        <button sc-camel-on-click="{{ cancelEdit }}" style="flex:none;padding:9px 18px;border:1.5px solid var(--text-muted);border-radius:999px;background:#fff;color:var(--text-strong);font:700 12px var(--font-display);cursor:pointer">Salir sin guardar</button>
+      </div>
+    </sc-if>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px">
       <sc-for list="{{ steps }}" as="s" hint-placeholder-count="8">
         <div style="padding:7px 14px;border-radius:999px;font:600 12px var(--font-display);background:{{ s.bg }};color:{{ s.fg }};border:1px solid {{ s.bd }}">{{ s.label }}</div>
@@ -2754,6 +2760,8 @@ class Component extends DCLogic {
       }),
       noResets:S.resets.length===0,
       showPwdInfo:(e)=>{ if(window.GU&&window.GU.banner) window.GU.banner(e.currentTarget.dataset.msg,'info'); },
+      editando:!!S.editId,
+      cancelEdit:()=>set({draft:this.initDraft(), editId:null, step:0, tab:'visitas', submitMsg:'', savedBanner:false}),
       editVisit:(e)=>{
         const id=e.currentTarget.dataset.id;
         const v=S.myVisits.find(x=>x.id===id);
