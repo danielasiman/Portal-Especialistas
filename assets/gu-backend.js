@@ -350,14 +350,39 @@
     if (key === KEY.SESSION) return;                 // la sesión la maneja Auth
 
     if (key === KEY.VISITS) {
-      var known = {};
-      snapshot.visits.forEach(function (v) { known[v.id] = 1; });
-      var nuevas = (val || []).filter(function (v) { return !known[v.id]; });
-      if (!nuevas.length) return;
-      var res = await sb.from("visits").insert(nuevas.map(visitToRow));
-      if (res.error) throw new Error(res.error.message);
+      // Tres casos: visitas nuevas, corregidas y borradas.
+      var antes = {};
+      snapshot.visits.forEach(function (v) { antes[v.id] = v; });
+      var ahora = {};
+      (val || []).forEach(function (v) { ahora[v.id] = v; });
+
+      var nuevas = [], cambiadas = [], borradas = [];
+      (val || []).forEach(function (v) {
+        if (!antes[v.id]) nuevas.push(v);
+        else if (JSON.stringify(antes[v.id]) !== JSON.stringify(v)) cambiadas.push(v);
+      });
+      Object.keys(antes).forEach(function (id) { if (!ahora[id]) borradas.push(id); });
+
+      if (!nuevas.length && !cambiadas.length && !borradas.length) return;
+
+      if (nuevas.length) {
+        var ri = await sb.from("visits").insert(nuevas.map(visitToRow));
+        if (ri.error) throw new Error(ri.error.message);
+      }
+      for (var i = 0; i < cambiadas.length; i++) {
+        var fila = visitToRow(cambiadas[i]);
+        delete fila.id;                       // el id no se toca
+        var ru = await sb.from("visits").update(fila).eq("id", cambiadas[i].id);
+        if (ru.error) throw new Error(ru.error.message);
+      }
+      if (borradas.length) {
+        var rd = await sb.from("visits").delete().in("id", borradas);
+        if (rd.error) throw new Error(rd.error.message);
+      }
+
       snapshot.visits = JSON.parse(JSON.stringify(val));
-      banner("Visita guardada.", "ok");
+      banner(borradas.length ? "Visita eliminada." :
+             cambiadas.length ? "Visita corregida." : "Visita guardada.", "ok");
       return;
     }
 
@@ -456,8 +481,13 @@
           if (ra2.error) throw new Error(ra2.error);
           // Además del aviso, queda en la columna "Contraseña temporal"
           // de la tabla, así que no se pierde si no alcanzás a copiarla.
-          banner("Contraseña nueva de " + ra2.email + " · " + ra2.password,
-                 "hold", ra2.password);
+          if (ra2.warning) {
+            banner("Contraseña nueva de " + ra2.email + " · " + ra2.password +
+                   " — " + ra2.warning, "hold", ra2.password);
+          } else {
+            banner("Contraseña nueva de " + ra2.email + " · " + ra2.password,
+                   "hold", ra2.password);
+          }
         } else if (rq.status === "Rechazada") {
           var rr = await fn("reject_reset", { id: rq.id });
           if (rr.error) throw new Error(rr.error);
