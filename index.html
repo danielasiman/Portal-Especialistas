@@ -2251,7 +2251,7 @@ strong, b { font-weight: var(--fw-bold); }
         <div style="font:700 12px var(--font-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--gu-cyan-600);margin-bottom:4px">Semana actual</div>
         <div style="font:800 18px var(--font-display);color:var(--text-strong);margin-bottom:16px">{{ weekLabelCur }}</div>
         <div style="font:600 11px var(--font-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Meta de tiendas a visitar</div>
-        <input type="number" min="0" max="30" name="metaCur" value="{{ metaCur }}" sc-camel-on-change="{{ onMeta }}" style="width:120px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:12px;font:700 20px var(--font-display);color:var(--gu-blue-286);box-sizing:border-box">
+        <div style="display:flex;align-items:baseline;gap:10px"><div style="font:800 28px var(--font-display);color:var(--gu-blue-286)">{{ metaCur }}</div><div style="font:400 12px var(--font-body);color:var(--text-muted)">tiendas · la fija tu jefatura</div></div>
         <div style="margin-top:18px;font:600 11px var(--font-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">Avance</div>
         <div style="height:12px;background:var(--surface-muted);border-radius:999px;overflow:hidden"><div style="height:100%;width:{{ metaBarW }};background:var(--gu-cyan);border-radius:999px"></div></div>
         <div style="margin-top:8px;font:600 13px var(--font-body);color:var(--text-strong)">{{ metaAvance }}</div>
@@ -2260,7 +2260,7 @@ strong, b { font-weight: var(--fw-bold); }
         <div style="font:700 12px var(--font-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--gu-cyan-600);margin-bottom:4px">Próxima semana</div>
         <div style="font:800 18px var(--font-display);color:var(--text-strong);margin-bottom:16px">{{ weekLabelNext }}</div>
         <div style="font:600 11px var(--font-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Meta de tiendas a visitar</div>
-        <input type="number" min="0" max="30" name="metaNext" value="{{ metaNext }}" sc-camel-on-change="{{ onMeta }}" style="width:120px;padding:10px 14px;border:1px solid var(--border-subtle);border-radius:12px;font:700 20px var(--font-display);color:var(--gu-blue-286);box-sizing:border-box">
+        <div style="display:flex;align-items:baseline;gap:10px"><div style="font:800 28px var(--font-display);color:var(--gu-blue-286)">{{ metaNext }}</div><div style="font:400 12px var(--font-body);color:var(--text-muted)">tiendas · la fija tu jefatura</div></div>
         <div style="margin-top:18px;font:400 13px/1.6 var(--font-body);color:var(--text-muted)">Planéala el viernes con base en los vendedores Prioridad 1 y las tiendas con brechas recurrentes.</div>
       </div>
       <div style="background:var(--gu-navy-900);border-radius:22px;padding:24px;color:#fff">
@@ -2362,14 +2362,20 @@ strong, b { font-weight: var(--fw-bold); }
     </div>
     <div style="font:400 14px/1.6 var(--font-body);color:var(--text-muted);margin:0 0 20px 20px">Por seguridad, todo cambio de contraseña requiere aprobación de un administrador. La nueva contraseña solo funciona después de aprobarla.</div>
     <div style="background:#fff;border:1px solid var(--border-subtle);border-radius:22px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:120px 1fr 1fr 120px 200px;gap:10px;padding:12px 20px;background:var(--gu-navy-648);font:700 11px var(--font-ui);letter-spacing:.1em;text-transform:uppercase;color:#fff">
-        <div>Fecha</div><div>Correo</div><div>Nombre</div><div>Estado</div><div>Acción</div>
+      <div style="display:grid;grid-template-columns:110px 1fr 1fr 110px 170px 180px;gap:10px;padding:12px 20px;background:var(--gu-navy-648);font:700 11px var(--font-ui);letter-spacing:.1em;text-transform:uppercase;color:#fff">
+        <div>Fecha</div><div>Correo</div><div>Nombre</div><div>Estado</div><div>Contraseña temporal</div><div>Acción</div>
       </div>
       <sc-for list="{{ resetRows }}" as="rq" hint-placeholder-count="3">
-        <div style="display:grid;grid-template-columns:120px 1fr 1fr 120px 200px;gap:10px;padding:12px 20px;border-top:1px solid var(--border-subtle);font:400 13px var(--font-body);color:var(--text-body);align-items:center">
+        <div style="display:grid;grid-template-columns:110px 1fr 1fr 110px 170px 180px;gap:10px;padding:12px 20px;border-top:1px solid var(--border-subtle);font:400 13px var(--font-body);color:var(--text-body);align-items:center">
           <div style="font-weight:600;color:var(--text-strong)">{{ rq.date }}</div>
           <div>{{ rq.email }}</div><div>{{ rq.name }}</div>
           <div style="font:700 12px var(--font-ui);color:{{ rq.color }}">{{ rq.status }}</div>
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font:600 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-strong);user-select:all;letter-spacing:.02em">{{ rq.tempPwd }}</span>
+            <sc-if value="{{ rq.hasTempPwd }}" hint-placeholder-val="{{ false }}">
+              <button data-msg="{{ rq.tempPwdInfo }}" sc-camel-on-click="{{ showPwdInfo }}" title="Cómo compartirla" style="flex:none;width:19px;height:19px;border-radius:50%;border:none;background:var(--gu-amber);color:#fff;font:700 12px/1 var(--font-display);cursor:pointer;padding:0">!</button>
+            </sc-if>
+          </div>
           <div style="display:flex;gap:8px">
             <sc-if value="{{ rq.pending }}" hint-placeholder-val="{{ false }}">
               <button data-id="{{ rq.id }}" sc-camel-on-click="{{ approveReset }}" style="padding:7px 16px;border:none;border-radius:999px;background:var(--gu-green);color:#fff;font:700 12px var(--font-display);cursor:pointer">Aprobar</button>
@@ -2708,7 +2714,7 @@ class Component extends DCLogic {
           set({loginError:'', authMsg:'Enviando…'});
           window.GU.requestReset(em).then(err=>{
             if(err){ set({loginError:err, authMsg:''}); return; }
-            set({authMode:'login', loginPwd:'', pwd2:'', loginError:'', authMsg:'Solicitud enviada. Un administrador debe aprobarla y te compartirá una contraseña temporal.'});
+            set({authMode:'login', loginPwd:'', pwd2:'', loginError:'', authMsg:'Solicitud enviada. Un administrador debe aprobarla y te compartirá una contraseña temporal. Si no tenés cuenta con ese correo no vas a recibir nada: pedile a tu jefatura que te la cree.'});
           });
         }
       },
@@ -2720,14 +2726,27 @@ class Component extends DCLogic {
     const adminCountry=ses.country;
     const nPend=S.resets.filter(r=>r.status==='Pendiente').length;
     const tabDefs=[{id:'nueva',label:'Nueva visita'},{id:'visitas',label:isAdmin?'Visitas':'Mis visitas'},{id:'plan',label:'Planificación'},{id:'reportes',label:'Reportes'}];
-    if(isAdmin){ tabDefs.push({id:'equipo',label:'Equipo'}); if(isCorp) tabDefs.push({id:'solicitudes',label:'Solicitudes'+(nPend?' ('+nPend+')':'')}); }
+    if(isAdmin){ tabDefs.push({id:'equipo',label:'Equipo'}); tabDefs.push({id:'solicitudes',label:'Solicitudes'+(nPend?' ('+nPend+')':'')}); }
     Object.assign(vals,{
       userName:ses.name, userSub:(isAdmin?(isCorp?'Administrador corporativo':'Administrador de país'):'Especialista comercial')+' · '+(isCorp?'Todos los países':ses.country), userCountry:ses.country, isAdmin, showCountryFilter:isCorp, canPickCountry:isCorp, lockedCountry:isAdmin&&!isCorp,
       tabs:tabDefs.map(t=>({...t, bg:S.tab===t.id?'var(--gu-cyan)':'rgba(255,255,255,.08)', fg:S.tab===t.id?'#fff':'var(--text-on-dark-dim)'})),
       goTab:(e)=>set({tab:e.currentTarget.dataset.tab, savedBanner:false}),
-      tabNueva:S.tab==='nueva', tabVisitas:S.tab==='visitas', tabPlan:S.tab==='plan', tabReportes:S.tab==='reportes', tabSolicitudes:S.tab==='solicitudes'&&isCorp,
-      resetRows:S.resets.slice().reverse().map(r=>({...r, pending:r.status==='Pendiente', color:r.status==='Pendiente'?'var(--gu-amber)':r.status==='Aprobada'?'var(--gu-green)':'var(--status-danger)'})),
+      tabNueva:S.tab==='nueva', tabVisitas:S.tab==='visitas', tabPlan:S.tab==='plan', tabReportes:S.tab==='reportes', tabSolicitudes:S.tab==='solicitudes'&&isAdmin,
+      resetRows:S.resets.slice().reverse().map(r=>{
+        const VIG=2;
+        const trans=r.resolvedAt?Math.floor((Date.now()-new Date(r.resolvedAt).getTime())/86400000):null;
+        const dias=trans===null?0:Math.max(0,VIG-trans);
+        const viva=!!(r.tempPwd&&r.tempPwd!=='—')&&dias>0;
+        return {...r,
+          pending:r.status==='Pendiente',
+          color:r.status==='Pendiente'?'var(--gu-amber)':r.status==='Aprobada'?'var(--gu-green)':'var(--status-danger)',
+          tempPwd: viva?r.tempPwd:'—',
+          hasTempPwd: viva,
+          tempPwdInfo: viva?('Copiá esta contraseña y compartila con '+r.name+' ('+r.email+'). Deja de mostrarse acá en '+dias+(dias===1?' día':' días')+', pero la cuenta sigue funcionando con ella hasta que la persona pida otro cambio.'):''
+        };
+      }),
       noResets:S.resets.length===0,
+      showPwdInfo:(e)=>{ if(window.GU&&window.GU.banner) window.GU.banner(e.currentTarget.dataset.msg,'info'); },
       approveReset:(e)=>{ const id=e.currentTarget.dataset.id; const nr=S.resets.map(r=>r.id===id?{...r,status:'Aprobada'}:r); const rq=S.resets.find(r=>r.id===id);
         const nu={...S.users}; if(rq&&nu[rq.email]) nu[rq.email]={...nu[rq.email],pwd:rq.newPwd};
         this.save('gu_fac_resets_v1',nr); this.save('gu_fac_users_v1',nu); set({resets:nr,users:nu}); },
@@ -2764,8 +2783,11 @@ class Component extends DCLogic {
         const name=em.split('@')[0].split(/[._]/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
         const role=isCorp?S.newRole:'Especialista', country=isCorp?S.newCountry:adminCountry;
         const nu={...S.users,[em]:{name,role,country,pwd:S.newPwd}};
-        this.save('gu_fac_users_v1',nu);
-        set({users:nu, newEmail:'', newPwd:'', teamMsg:'Cuenta creada: '+em+' ('+role+' · '+country+').', teamMsgOk:true});
+        set({teamMsg:'Creando la cuenta…', teamMsgOk:true});
+        this.save('gu_fac_users_v1',nu).then(r=>{
+          if(!r||!r.ok){ set({teamMsg:'No se pudo crear la cuenta: '+((r&&r.error)||'error'), teamMsgOk:false}); return; }
+          set({users:nu, newEmail:'', newPwd:'', teamMsg:'Cuenta creada: '+em+' ('+role+' · '+country+'). La contraseña temporal está en el aviso de arriba.', teamMsgOk:true});
+        });
       },
       delAccount:(e)=>{
         const em=e.currentTarget.dataset.email;
@@ -2794,8 +2816,11 @@ class Component extends DCLogic {
         const role=isCorp?S.nuRole:'Especialista';
         const country=isCorp?S.nuCountry:adminCountry;
         const nu={...S.users,[em]:{name,role,country,pwd:S.nuPwd}};
-        this.save('gu_fac_users_v1',nu);
-        set({users:nu, nuEmail:'', nuName:'', nuPwd:'', nuMsg:'Cuenta creada: '+name+' ('+role+' · '+country+'). Comparte la contraseña temporal; podrá cambiarla con aprobación.', nuOk:true});
+        set({nuMsg:'Creando la cuenta…', nuOk:true});
+        this.save('gu_fac_users_v1',nu).then(r=>{
+          if(!r||!r.ok){ set({nuMsg:'No se pudo crear la cuenta: '+((r&&r.error)||'error'), nuOk:false}); return; }
+          set({users:nu, nuEmail:'', nuName:'', nuPwd:'', nuMsg:'Cuenta creada: '+name+' ('+role+' · '+country+'). La contraseña temporal está en el aviso de arriba.', nuOk:true});
+        });
       },
       delUser:(e)=>{
         const em=e.currentTarget.dataset.email;
@@ -2845,7 +2870,7 @@ class Component extends DCLogic {
       onCheck:(e)=>{ const i=+e.target.dataset.idx; const c=S.draft.checks.slice(); c[i]=e.target.checked; set({draft:{...S.draft,checks:c},submitMsg:''}); },
       prevStep:()=>set({step:Math.max(0,S.step===5&&silent?0:S.step-1), submitMsg:''}),
       nextStep:()=>{
-        if(S.step===0 && !d.store){ set({submitMsg:''}); alert('Selecciona la tienda visitada.'); return; }
+        if(S.step===0 && !d.store){ if(window.GU&&window.GU.banner) window.GU.banner('Seleccioná la tienda visitada antes de continuar.','info'); return; }
         let nx=S.step+1;
         if(S.step===0 && silent) nx=5;
         set({step:Math.min(7,nx)});
@@ -2869,8 +2894,11 @@ class Component extends DCLogic {
           vendedores:d.vendedores.filter(v=>v.nombre||v.palabras||v.atenciones).map(v=>({...v})),
           full:d };
         const mv=S.myVisits.concat([visit]);
-        this.save('gu_fac_visits_v1',mv);
-        set({myVisits:mv, draft:this.initDraft(), step:0, tab:'visitas', savedBanner:true, submitMsg:''});
+        set({submitMsg:'Guardando la visita…'});
+        this.save('gu_fac_visits_v1',mv).then(r=>{
+          if(!r||!r.ok){ set({submitMsg:'No se pudo guardar la visita. Revisá el aviso de arriba y volvé a intentar — no cierres esta pantalla, el reporte sigue acá.'}); return; }
+          set({myVisits:mv, draft:this.initDraft(), step:0, tab:'visitas', savedBanner:true, submitMsg:''});
+        });
       }
     });
     // ----- mis visitas -----
