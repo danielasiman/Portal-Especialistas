@@ -369,15 +369,24 @@
         var ri = await sb.from("visits").insert(nuevas.map(visitToRow));
         if (ri.error) throw new Error(ri.error.message);
       }
+      // OJO: cuando RLS no permite tocar una fila, Postgres no devuelve
+      // error — simplemente no afecta ninguna fila. Por eso se pide de
+      // vuelta lo modificado con .select() y se cuenta: si vuelve vacío,
+      // el permiso falta y hay que decirlo, no fingir que se guardó.
+      var FALTA_SQL = "La base no permitió el cambio. Falta correr " +
+                      "04-corregir-visitas.sql en el SQL Editor de Supabase.";
+
       for (var i = 0; i < cambiadas.length; i++) {
         var fila = visitToRow(cambiadas[i]);
         delete fila.id;                       // el id no se toca
-        var ru = await sb.from("visits").update(fila).eq("id", cambiadas[i].id);
+        var ru = await sb.from("visits").update(fila).eq("id", cambiadas[i].id).select("id");
         if (ru.error) throw new Error(ru.error.message);
+        if (!ru.data || !ru.data.length) throw new Error(FALTA_SQL);
       }
       if (borradas.length) {
-        var rd = await sb.from("visits").delete().in("id", borradas);
+        var rd = await sb.from("visits").delete().in("id", borradas).select("id");
         if (rd.error) throw new Error(rd.error.message);
+        if (!rd.data || rd.data.length !== borradas.length) throw new Error(FALTA_SQL);
       }
 
       snapshot.visits = JSON.parse(JSON.stringify(val));
